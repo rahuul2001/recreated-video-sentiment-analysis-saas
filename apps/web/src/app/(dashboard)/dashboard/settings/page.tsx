@@ -34,28 +34,6 @@ export default async function SettingsPage() {
         </div>
       </div>
 
-      {/* API Configuration */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
-        <h2 className="text-lg font-semibold text-white">API Configuration</h2>
-        <p className="mt-1 text-sm text-slate-400">
-          Configure your Modal worker endpoint for video processing
-        </p>
-        <div className="mt-4 space-y-4">
-          <div>
-            <label className="text-sm text-slate-400">Modal Worker URL</label>
-            <p className="mt-1 font-mono text-sm text-slate-300">
-              {process.env.MODAL_URL || "Not configured"}
-            </p>
-          </div>
-          <div>
-            <label className="text-sm text-slate-400">Callback URL</label>
-            <p className="mt-1 font-mono text-sm text-slate-300">
-              {process.env.NEXT_PUBLIC_APP_URL || "Not configured"}
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* User Profile */}
       <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
         <h2 className="mb-4 text-lg font-semibold text-white">Account</h2>

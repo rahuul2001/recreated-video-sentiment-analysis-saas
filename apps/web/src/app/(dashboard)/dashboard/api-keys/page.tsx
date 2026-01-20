@@ -112,15 +112,14 @@ export default function ApiKeysPage() {
         <p className="mt-2 text-sm text-slate-400">
           Use your API key to analyze videos programmatically. Replace{" "}
           <code className="rounded bg-slate-800 px-1 py-0.5 text-purple-400">YOUR_API_KEY</code>{" "}
-          and <code className="rounded bg-slate-800 px-1 py-0.5 text-purple-400">YOUR_BASE_URL</code>{" "}
-          with your actual values.
+          with your actual API key value.
         </p>
 
         <div className="mt-4 space-y-4">
           <div>
             <p className="mb-2 text-sm font-medium text-slate-300">Analyze a video from URL:</p>
             <pre className="overflow-x-auto rounded-lg bg-slate-950 p-4 text-sm text-slate-300">
-{`curl -X POST YOUR_BASE_URL/api/v1/analyze \\
+{`curl -X POST https://recreated-video-sentiment-analysis-ten.vercel.app/api/v1/analyze \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
