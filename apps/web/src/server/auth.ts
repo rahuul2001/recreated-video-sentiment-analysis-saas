@@ -8,35 +8,34 @@ export async function getOrCreateUser() {
     return null;
   }
 
-  let user = await prisma.user.findUnique({
+  const clerkUser = await currentUser();
+  if (!clerkUser) return null;
+
+  const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
+  const name = clerkUser.firstName
+    ? `${clerkUser.firstName} ${clerkUser.lastName ?? ""}`.trim()
+    : null;
+
+  // Use upsert to handle both new users and existing users with same email
+  const user = await prisma.user.upsert({
     where: { clerkId },
+    update: {
+      email,
+      name,
+      imageUrl: clerkUser.imageUrl,
+    },
+    create: {
+      clerkId,
+      email,
+      name,
+      imageUrl: clerkUser.imageUrl,
+    },
     include: {
       memberships: {
         include: { org: true },
       },
     },
   });
-
-  if (!user) {
-    const clerkUser = await currentUser();
-    if (!clerkUser) return null;
-
-    user = await prisma.user.create({
-      data: {
-        clerkId,
-        email: clerkUser.emailAddresses[0]?.emailAddress ?? "",
-        name: clerkUser.firstName
-          ? `${clerkUser.firstName} ${clerkUser.lastName ?? ""}`.trim()
-          : null,
-        imageUrl: clerkUser.imageUrl,
-      },
-      include: {
-        memberships: {
-          include: { org: true },
-        },
-      },
-    });
-  }
 
   return user;
 }
