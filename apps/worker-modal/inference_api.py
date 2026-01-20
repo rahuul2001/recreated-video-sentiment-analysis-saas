@@ -215,7 +215,7 @@ def get_signed_download_url(callback_base_url: str, storage_key: str) -> str:
 
 # --- Main Modal Function ---
 
-@app.function(image=image, secrets=secrets, timeout=60 * 20) # 20 minute timeout
+@app.function(image=image, secrets=secrets, timeout=60 * 20, memory=4096) # 20 minute timeout
 @modal.asgi_app()
 def fastapi_app():
     from fastapi import FastAPI, BackgroundTasks, HTTPException

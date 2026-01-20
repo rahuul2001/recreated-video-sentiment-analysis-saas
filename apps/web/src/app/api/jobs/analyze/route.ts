@@ -103,8 +103,9 @@ export async function POST(req: Request) {
       });
     };
 
-    // Fire and forget with retries
-    triggerModal().catch(console.error);
+    // IMPORTANT: Must await on Vercel serverless - "fire and forget" doesn't work
+    // because Vercel terminates the function after response is sent
+    await triggerModal();
 
     return NextResponse.json({
       jobId: job.id,
