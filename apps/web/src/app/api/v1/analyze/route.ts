@@ -182,20 +182,22 @@ export async function POST(req: Request) {
     const callbackUrl = process.env.CALLBACK_URL || process.env.NEXT_PUBLIC_APP_URL;
 
     if (modalUrl) {
-      // Trigger Modal worker (don't await - fire and forget)
-      fetch(`${modalUrl}/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobId: job.id,
-          orgId: org.id,
-          videoStorageKey: storageKey,
-          callbackBaseUrl: callbackUrl,
-          webhookUrl: body.webhookUrl,
-        }),
-      }).catch((err) => {
+      // Trigger Modal worker - must await on Vercel serverless
+      try {
+        await fetch(`${modalUrl}/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jobId: job.id,
+            orgId: org.id,
+            videoStorageKey: storageKey,
+            callbackBaseUrl: callbackUrl,
+            webhookUrl: body.webhookUrl,
+          }),
+        });
+      } catch (err) {
         console.error("Failed to trigger Modal worker:", err);
-      });
+      }
     }
 
     // If async mode, return immediately
