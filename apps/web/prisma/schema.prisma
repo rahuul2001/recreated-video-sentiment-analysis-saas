@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// UPDATE THIS BLOCK
+datasource db {
+  provider  = "postgresql"
+}
+
+// ... Keep all your models (User, Organization, etc.) below exactly as they were ...
+enum OrgRole {
+  OWNER
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  name      String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  apiKeys     ApiKey[]
+  mediaAssets MediaAsset[]
+  jobs        Job[]
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  mediaAssets MediaAsset[]
+  jobs        Job[]
+  apiKeys     ApiKey[]
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  role      OrgRole
+  createdAt DateTime @default(now())
+
+  userId String
+  orgId  String
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+  @@index([orgId])
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String?
+  keyHash    String    @unique
+  prefix     String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  userId String
+  orgId  String
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([userId])
+}
+
+model MediaAsset {
+  id     String @id @default(cuid())
+  orgId  String
+  userId String
+
+  storageKey  String   @unique
+  mimeType    String
+  sizeBytes   Int?
+  durationSec Int?
+  createdAt   DateTime @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  jobs Job[]
+
+  @@index([orgId])
+  @@index([userId])
+}
+
+model Job {
+  id           String @id @default(cuid())
+  orgId        String
+  userId       String
+  mediaAssetId String
+
+  status       JobStatus @default(QUEUED)
+  progress     Int       @default(0)
+  retryCount   Int       @default(0)
+  errorCode    String?
+  errorMessage String?
+
+  resultJsonKey String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaAsset MediaAsset   @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
