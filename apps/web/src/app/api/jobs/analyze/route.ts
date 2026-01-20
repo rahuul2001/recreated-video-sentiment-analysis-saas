@@ -59,48 +59,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "worker-not-configured" }, { status: 500 });
     }
 
-    // Trigger Modal worker with retry logic for cold starts
-    const triggerModal = async (retries = 3): Promise<void> => {
-      for (let i = 0; i < retries; i++) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-          
-          const response = await fetch(`${modalUrl}/analyze`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              jobId: job.id,
-              orgId: org.id,
-              videoStorageKey: body.storageKey,
-              callbackBaseUrl: callbackUrl,
-            }),
-            signal: controller.signal,
-          });
-          
-          clearTimeout(timeoutId);
-          
-          if (response.ok) {
-            console.log(`Modal worker triggered successfully for job ${job.id}`);
-            return;
-          }
-          console.error(`Modal worker returned ${response.status}, attempt ${i + 1}/${retries}`);
-        } catch (err) {
-          console.error(`Failed to trigger Modal worker (attempt ${i + 1}/${retries}):`, err);
-          if (i < retries - 1) {
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
-          }
+    // Trigger Modal worker - no timeout, let Vercel's function timeout handle it
+    const triggerModal = async (): Promise<void> => {
+      try {
+        const response = await fetch(`${modalUrl}/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jobId: job.id,
+            orgId: org.id,
+            videoStorageKey: body.storageKey,
+            callbackBaseUrl: callbackUrl,
+          }),
+        });
+        
+        if (response.ok) {
+          console.log(`Modal worker triggered successfully for job ${job.id}`);
+        } else {
+          console.error(`Modal worker returned ${response.status}`);
         }
+      } catch (err) {
+        console.error(`Failed to trigger Modal worker:`, err);
+        // Don't fail the job - Modal might still process it via the request that was sent
       }
-      // All retries failed - update job status
-      await prisma.job.update({
-        where: { id: job.id },
-        data: {
-          status: "FAILED",
-          errorCode: "WORKER_UNREACHABLE",
-          errorMessage: "Failed to reach Modal worker after multiple attempts",
-        },
-      });
     };
 
     // IMPORTANT: Must await on Vercel serverless - "fire and forget" doesn't work
