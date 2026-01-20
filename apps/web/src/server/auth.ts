@@ -8,6 +8,7 @@ export async function getOrCreateUser() {
     return null;
   }
 
+  // First try to find existing user
   let user = await prisma.user.findUnique({
     where: { clerkId },
     include: {
@@ -21,21 +22,48 @@ export async function getOrCreateUser() {
     const clerkUser = await currentUser();
     if (!clerkUser) return null;
 
-    user = await prisma.user.create({
-      data: {
-        clerkId,
-        email: clerkUser.emailAddresses[0]?.emailAddress ?? "",
-        name: clerkUser.firstName
-          ? `${clerkUser.firstName} ${clerkUser.lastName ?? ""}`.trim()
-          : null,
-        imageUrl: clerkUser.imageUrl,
-      },
-      include: {
-        memberships: {
-          include: { org: true },
+    const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
+    const name = clerkUser.firstName
+      ? `${clerkUser.firstName} ${clerkUser.lastName ?? ""}`.trim()
+      : null;
+
+    // Use upsert to handle race conditions where multiple requests
+    // try to create the same user simultaneously
+    try {
+      user = await prisma.user.upsert({
+        where: { clerkId },
+        update: {
+          email,
+          name,
+          imageUrl: clerkUser.imageUrl,
         },
-      },
-    });
+        create: {
+          clerkId,
+          email,
+          name,
+          imageUrl: clerkUser.imageUrl,
+        },
+        include: {
+          memberships: {
+            include: { org: true },
+          },
+        },
+      });
+    } catch (e: any) {
+      // If upsert fails due to email constraint, the user exists - fetch it
+      if (e.code === 'P2002') {
+        user = await prisma.user.findUnique({
+          where: { clerkId },
+          include: {
+            memberships: {
+              include: { org: true },
+            },
+          },
+        });
+      } else {
+        throw e;
+      }
+    }
   }
 
   return user;
