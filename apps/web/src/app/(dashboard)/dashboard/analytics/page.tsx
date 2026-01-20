@@ -26,8 +26,9 @@ export default async function AnalyticsPage() {
       where: { orgId: org.id, status: "SUCCEEDED" },
       orderBy: { createdAt: "desc" },
       take: 10,
+      select: { id: true, createdAt: true },
     }),
-  ]);
+  ]) as [number, number, number, { id: string; createdAt: Date }[]];
 
   const successRate = totalJobs > 0 ? (successfulJobs / totalJobs) * 100 : 0;
 
