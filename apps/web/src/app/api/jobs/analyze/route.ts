@@ -59,19 +59,52 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "worker-not-configured" }, { status: 500 });
     }
 
-    // Fire and forget - trigger the Modal worker
-    fetch(`${modalUrl}/analyze`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jobId: job.id,
-        orgId: org.id,
-        videoStorageKey: body.storageKey,
-        callbackBaseUrl: callbackUrl,
-      }),
-    }).catch((err) => {
-      console.error("Failed to trigger Modal worker:", err);
-    });
+    // Trigger Modal worker with retry logic for cold starts
+    const triggerModal = async (retries = 3): Promise<void> => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+          
+          const response = await fetch(`${modalUrl}/analyze`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              jobId: job.id,
+              orgId: org.id,
+              videoStorageKey: body.storageKey,
+              callbackBaseUrl: callbackUrl,
+            }),
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (response.ok) {
+            console.log(`Modal worker triggered successfully for job ${job.id}`);
+            return;
+          }
+          console.error(`Modal worker returned ${response.status}, attempt ${i + 1}/${retries}`);
+        } catch (err) {
+          console.error(`Failed to trigger Modal worker (attempt ${i + 1}/${retries}):`, err);
+          if (i < retries - 1) {
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+          }
+        }
+      }
+      // All retries failed - update job status
+      await prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: "FAILED",
+          errorCode: "WORKER_UNREACHABLE",
+          errorMessage: "Failed to reach Modal worker after multiple attempts",
+        },
+      });
+    };
+
+    // Fire and forget with retries
+    triggerModal().catch(console.error);
 
     return NextResponse.json({
       jobId: job.id,
